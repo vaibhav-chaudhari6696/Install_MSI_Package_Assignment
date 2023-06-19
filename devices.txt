@@ -1,0 +1,4 @@
+host1   username1   pass1 share_folder1
+host2   username2   pass2 share_folder2
+host3   username3   pass3 share_folder3
+host4   username4   pass4 share_folder4
