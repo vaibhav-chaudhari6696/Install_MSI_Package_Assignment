@@ -33,7 +33,7 @@ function InstallMsiPackage {
         [string]$InstallDir,
         [string]$PackagePath
     )
-    $timeoutInSeconds = 30
+    $timeoutInSeconds = 120
             
 
     try {
