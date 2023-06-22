@@ -23,19 +23,20 @@ fi
 
 
 # Common Variables for remote Windows device details
-install_dir='"C:\Program Files (x86)"'
-port='"22"'
+install_dir="C:\Program Files (x86)"
+port="22"
 public_key="$(cat ~/.ssh/id_rsa.pub)"
-public_key="\"$public_key\""
+
 
 
 
 # Name of files on the local Linux device
 winexe_binary_file="./winexe"
-local_msi_file_64_bit="./RWSSHDService_x64.msi"
+local_msi_file_64_bit="/home/vdc/New Packages/Windows Packages/MSI Packages/RWSSHDService_x64.msi"
 local_msi_file_32_bit="./RWSSHDService.msi"
-local_msi_file="./RWSSHDService_x64.msi"
-local_ps_script="./msi_install.ps1"
+local_msi_file="/home/vdc/New Packages/Windows Packages/MSI Packages/RWSSHDService_x64.msi"
+local_ps_script="/home/vdc/New Packages/Windows Packages/MSI Packages/msi_install.ps1"
+flg_32_bit="0"
 
 # Define the path to the text file containing the list of devices
 devices_file="./devices.txt"
@@ -50,14 +51,15 @@ remote_ps_script_name="msi_install.ps1"
 
 # Check if the MSI file for 64-bit machine exists
 if [ ! -f "$local_msi_file_64_bit" ]; then
-    echo "The file $local_msi_file_64_bit does not exist in the current directory."
+    echo "The MSI file for 64-bit device does not exist in the current directory."
     exit 1
 fi
 
 # Check if the MSI file for 32-bit machine exists
 if [ ! -f "$local_msi_file_32_bit" ]; then
-    echo "The file $local_msi_file_32_bit does not exist in the current directory."
-    exit 1
+    flg_32_bit="1"
+    echo "The MSI file for 32-bit device does not exist in the current directory."
+    
 fi
 
 # Check if the PowerShell Script file exists
@@ -84,7 +86,7 @@ fi
 declare -a devices_list
 
 # Read the devices file into the array
-while IFS=$' \t,' read -r host username password folder || [ -n "$host" ]; do
+while IFS=$',' read -r host username password folder || [ -n "$host" ]; do
 
     # Check if the IP address value present
     if ! [[ "$host" =~ ^[0-9]+(\.[0-9]+){3}$ ]] || [ -z "$host" ] || [[ "$host" =~ [[:space:]] ]]; then
@@ -166,20 +168,28 @@ for ((i=0; i<${#devices_list[@]}; i+=4)); do
         
         # Set Installation Directory according architecture of the remote Windows device
         if [[ $arch_result == *"64-bit"* ]]; then
-            local_msi_file="\"$local_msi_file_64_bit\""
+            local_msi_file="$local_msi_file_64_bit"
             remote_msi_file_name="RWSSHDService_x64.msi"
-            install_dir='"C:\Program Files (x86)"'
+            install_dir="C:\Program Files (x86)"
 
         else
-            local_msi_file="\"$local_msi_file_32_bit\""
-            remote_msi_file_name="RWSSHDService.msi"
-            install_dir='"C:\Program Files"'
+            if [ "$flg_32_bit" -ne 0 ]; then
+                echo "The MSI file for 32-bit device does not exist in the current directory.Skipping 32-bit device $host"
+                echo -e "--------------------------------------------------------------------------------\n\n"
+                continue
+            else
+                local_msi_file="$local_msi_file_32_bit"
+                remote_msi_file_name="RWSSHDService.msi"
+                install_dir="C:\Program Files"
+            fi
+
         fi
 
 
 
         # Get actual system path of shared folder, required to access MSI Package while installation  
-        netshare_output=$(./winexe -U "$username%$password" //"$host" "net share $folder")
+        netshare_output=$(./winexe -U "$username%$password" //"$host" "net share \"$folder\"")
+        
 
         if [ $? -ne 0 ]; then
             echo "ERROR: Failed to Get system folder path of shared folder."
@@ -199,16 +209,16 @@ for ((i=0; i<${#devices_list[@]}; i+=4)); do
 
         # Concatenate the path and filenames
         msi_package_path="${folder_system_path}\\${remote_msi_file_name}"
-        msi_package_path="\"$msi_package_path\""
+       
 
         ps_script_path="${folder_system_path}\\${remote_ps_script_name}"
-        ps_script_path="\"$ps_script_path\""
+       
 
 
         echo -e "\n------------ Copying MSI Package and PowerShell Script to remote host  ----------\n"
 
         # Copy the Powershell Script file to the remote Windows device        
-        if ! smbclient -U "$username%$password" "//${host}/$folder" -c "put "$local_ps_script" "$remote_ps_script_name""; then
+        if ! timeout 5m smbclient -U "$username%$password" "//${host}/$folder" -c "put \"$local_ps_script\" \"$remote_ps_script_name\""; then
             echo "Failed to copy $local_ps_script to $host"
             echo -e "--------------------------------------------------------------------------------\n\n"
             continue
@@ -221,7 +231,7 @@ for ((i=0; i<${#devices_list[@]}; i+=4)); do
 
 
         # Copy the SSH MSI file to the remote Windows device
-        if ! smbclient -U "$username%$password" "//${host}/$folder" -c "put "$local_msi_file" "$remote_msi_file_name""; then
+        if ! timeout 20m smbclient -U "$username%$password" "//${host}/$folder" -c "put \"$local_msi_file\" \"$remote_msi_file_name\""; then
             echo "Failed to copy $local_msi_file to $host"
             echo -e "--------------------------------------------------------------------------------\n\n"
             continue
@@ -235,7 +245,7 @@ for ((i=0; i<${#devices_list[@]}; i+=4)); do
 
 
         # Execute the Powershell Script on the remote Windows device
-        output=$(./winexe -U "$username%$password" //"$host" "powershell -ExecutionPolicy Bypass -File $ps_script_path  -Username $username -Password $password -Port $port -Publickey $public_key  -InstallDir $install_dir -PackagePath $msi_package_path")
+        output=$(./winexe -U "$username%$password" //"$host" "powershell -ExecutionPolicy Bypass -File \"$ps_script_path\"  -Username \"$username\" -Password \"$password\" -Port \"$port\" -Publickey \"$public_key\"  -InstallDir \"$install_dir\" -PackagePath \"$msi_package_path\"")
 
         if [ $? -ne 0 ]; then
             echo "ERROR: Failed to Run PowerShell Script on remote host host."
