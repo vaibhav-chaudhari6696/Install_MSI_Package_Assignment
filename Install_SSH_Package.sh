@@ -51,20 +51,20 @@ remote_ps_script_name="msi_install.ps1"
 
 # Check if the MSI file for 64-bit machine exists
 if [ ! -f "$local_msi_file_64_bit" ]; then
-    echo "The MSI file for 64-bit device does not exist in the current directory."
+    echo "The MSI file for 64-bit device does not exist in the specified directory."
     exit 1
 fi
 
 # Check if the MSI file for 32-bit machine exists
 if [ ! -f "$local_msi_file_32_bit" ]; then
     flg_32_bit="1"
-    echo "The MSI file for 32-bit device does not exist in the current directory."
+    echo "The MSI file for 32-bit device does not exist in the specified directory."
     
 fi
 
 # Check if the PowerShell Script file exists
 if [ ! -f "$local_ps_script" ]; then
-    echo "The file $local_ps_script does not exist in the current directory."
+    echo "The file $local_ps_script does not exist in the specified directory."
     exit 1
 fi
 
@@ -174,7 +174,7 @@ for ((i=0; i<${#devices_list[@]}; i+=4)); do
 
         else
             if [ "$flg_32_bit" -ne 0 ]; then
-                echo "The MSI file for 32-bit device does not exist in the current directory.Skipping 32-bit device $host"
+                echo "The MSI file for 32-bit device does not exist in the specified directory.Skipping 32-bit device $host"
                 echo -e "--------------------------------------------------------------------------------\n\n"
                 continue
             else
